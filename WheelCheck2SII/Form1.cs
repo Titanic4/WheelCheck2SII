@@ -120,7 +120,7 @@ namespace WheelCheck2SII
                 var contents = "";
                 foreach (var item in wheelCheck)
                 {
-                    contents += $"output_values[]: {Math.Round(item.deltaXDeg / max, 1).ToString(CultureInfo.CreateSpecificCulture("en-GB"))}\n";
+                    contents += $"output_values[]: {Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value).ToString("0.##################", CultureInfo.GetCultureInfo("en-GB"))}\n";
                 }
                 var fileContents = header + contents + footer;
                 SaveDialog.FileName = "ffb_lut.sii";
@@ -144,6 +144,28 @@ namespace WheelCheck2SII
             {
                 MessageBox.Show($"Load the WheelCheck CSV first.");
             }
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            if (chart1.Series.FindByName("outvals") != null)
+            {
+                chart1.Series["outvals"].Points.Clear();
+            }
+            
+            if (chart1.Series.FindByName("outvals") == null)
+            {
+                
+                chart1.Series.Add("outvals");
+                chart1.Series["outvals"].ChartType = SeriesChartType.Line;
+                chart1.Series["outvals"].BorderWidth = 2;
+            }
+           
+
+            for (int i = 0; i < wheelCheck.Count(); i++)
+                chart1.Series["outvals"].Points.AddXY(i, Math.Round(wheelCheck[i].deltaXDeg / max, (int)numericUpDown1.Value)*max);
+                chart1.Update();
+
         }
     }
 
