@@ -24,8 +24,9 @@ namespace WheelCheck2SII
         int count = 0;
         int noforce = 0;
         decimal deadzone = 0;
-        
+        bool LUTMode = false;
         List<WheelCheckCSV> wheelCheck = new List<WheelCheckCSV>();
+        List<LUTGeneratorFile> LUT = new List<LUTGeneratorFile>();
         OpenFileDialog OpenDialog = new OpenFileDialog();
         SaveFileDialog SaveDialog = new SaveFileDialog();
         public Form1()
@@ -56,14 +57,16 @@ namespace WheelCheck2SII
             noforce = 0;
             dzfound = false;
             dzoffset = 0;
-            OpenDialog.DefaultExt = ".csv";
-            OpenDialog.Title = "Select WheelCheck CSV";
+            OpenDialog.DefaultExt = ".csv(WheelCheck CSV) | .lut(LUT Generator output)";
+            OpenDialog.Title = "Select WheelCheck CSV or LUT Generator output file...";
+            
             DialogResult Res = OpenDialog.ShowDialog();
             if (Res == DialogResult.OK)
             {
                 string Path = OpenDialog.FileName;
-                if (Path.Contains("csv"))
+                if (Path.Contains(".csv"))
                 {
+                   
                     CSV = File.ReadAllText(Path).Split(',');
                     if (!CSV[0].Contains("force"))
                     {
@@ -72,7 +75,7 @@ namespace WheelCheck2SII
                     }
                     else
                     {
-
+                        LUTMode = false;
                         using (TextFieldParser textFieldParser = new TextFieldParser(Path))
                         {
                             if (chart1.Series.FindByName("deltaXDeg") != null)
@@ -133,7 +136,7 @@ namespace WheelCheck2SII
                         max = maxDataPoint.YValues[0];
 
                         deadzone = (decimal)noforce / count;
-                        label1.Text = $"Amount of points: {chart1.Series["deltaXDeg"].Points.Count}\nMaximum: {Math.Round(max, 2)}\nDeadzone: {deadzone*100} %";
+                        label1.Text = $"Amount of points: {chart1.Series["deltaXDeg"].Points.Count}\nMaximum: {Math.Round(max, 2)}\nDeadzone: {Math.Round(deadzone * 100, 2)} %";
                         if (chart1.Series.FindByName("outvals") != null)
                         {
                             chart1.Series["outvals"].Points.Clear();
@@ -154,16 +157,89 @@ namespace WheelCheck2SII
                             chart1.Series["outvals"].Points.AddXY(i, Math.Round(wheelCheck[i].deltaXDeg / max, (int)numericUpDown1.Value) * max);
                         }
                         chart1.Update();
-                        MessageBox.Show($"Successfully loaded {count} values from selected CSV file.\n Detected deadzone:{deadzone * 100}%");
+                        MessageBox.Show($"Successfully loaded {count} values from selected CSV file.\n Detected deadzone:{Math.Round(deadzone * 100, 2)}%");
                     }
 
+                }
+                if (Path.Contains("lut")) // LUT Generator file support...
+                {
+                    string Check = File.ReadAllText(Path);
+                    if (!Check.Contains("|"))
+                    {
+
+                        MessageBox.Show("The selected file isn't made by LUT Generator.");
+                    }
+                    else
+                    {
+                        LUTMode = true;
+                        toolTip1.SetToolTip(numericUpDown1, "This is unavailable in LUT Generator mode. This is used in WheelCheck mode.");
+                        numericUpDown1.Enabled = false;
+                        int count = 0;
+                        double maxForce = 0;
+
+                        // LUT Generator file is basically the file, where each line has the following format: 
+                        // Requested force | Actual given force
+                        using (TextFieldParser textFieldParser = new TextFieldParser(Path))
+                        {
+
+                            textFieldParser.Delimiters = new string[] { "|" };
+                            while (!textFieldParser.EndOfData)
+                            {
+                                LUTGeneratorFile LutFile = new LUTGeneratorFile();
+
+                                string[] ParsedText = textFieldParser.ReadFields();
+                                double.TryParse(ParsedText[0], out double reqforce);
+                                double.TryParse(ParsedText[1], out double force);
+                                LutFile.requestedForce = reqforce * 10000;
+                                LutFile.actualForce = force * 10000;
+                                LUT.Add(LutFile);
+                                count++;
+                            }
+
+
+
+                        }
+                        foreach (var item in LUT)
+                        {
+                            if (item.actualForce > maxForce)
+                            {
+                                maxForce = item.actualForce;
+                            }
+                        }
+
+                        if (chart1.Series.FindByName("deltaXDeg") != null)
+                        {
+                            chart1.Series["deltaXDeg"].Points.Clear();
+
+                        }
+                        wheelCheck.Clear();
+
+                        if (chart1.Series.FindByName("actualForce") == null)
+                        {
+                            chart1.Series.Add("actualForce");
+                            chart1.Series["actualForce"].ChartType = SeriesChartType.Line;
+                            chart1.Series["actualForce"].BorderWidth = 2;
+                        }
+
+                        chart1.DataSource = LUT;
+
+                        for (int i = 0; i < LUT.Count(); i++)
+                        {
+                            chart1.Series["actualForce"].Points.Add(LUT[i].actualForce);
+
+                        }
+
+                        MessageBox.Show($"There are {count + 1} values in this LUT Generator file. \n Max force: {maxForce}");
+                        chart1.Update();
+                    }
                 }
             }
             else
             {
+                
                 if (Res != DialogResult.Cancel)
                 {
-                    MessageBox.Show("The selected file isn't made by WheelCheck.");
+                    MessageBox.Show("The selected file isn't made by neither WheelCheck nor LUT Generator.");
                 }
             }
             }
@@ -171,16 +247,45 @@ namespace WheelCheck2SII
 
         private void button2_Click(object sender, EventArgs e)
         {
-            if (count > 0)
+            var header = "SiiNunit\r\n{\r\ninput_force_feedback_lut : ffb.lut {\n# This ffb_lut.sii file was generated by WheelCheck2SII converter.\n\n";
+            var footer = "\n}\r\n}";
+            var contents = "";
+            if (LUT.Count > 0 || wheelCheck.Count > 0)
             {
-                var header = "SiiNunit\r\n{\r\ninput_force_feedback_lut : ffb.lut {\n# This ffb_lut.sii file was generated by WheelCheck2SII converter.\n\n";
-                var footer = "\n}\r\n}";
-                var contents = "";
+
                 noforce = 0;
-       
+                if (LUTMode)
+                {
+                    foreach (var item in LUT)
+                    {
+                        contents += $"output_values[]: {Math.Round(item.actualForce / 10000, 3)}\n";
+
+                    }
+                    var fileContents = header + contents + footer;
+                    SaveDialog.FileName = "ffb_lut.sii";
+                    SaveDialog.Filter = "Force Feedback LUT file(ETS2/ATS 1.42+) | ffb_lut.sii";
+                    SaveDialog.Title = "Select the location where you want to save the file";
+                    if (SaveDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        try
+                        {
+                            File.WriteAllText(SaveDialog.FileName, fileContents);
+
+                            MessageBox.Show($"Successfully saved ffb_lut.sii file in {SaveDialog.FileName}");
+                        }
+                        catch (Exception E)
+                        {
+                            MessageBox.Show($"There was problem saving the file. Either you don't have permission, or the drive you want to write into is read only.\n{E.Message}\n{E.StackTrace}");
+                        }
+
+                    }
+                }
+            }
+            else
+            {
                 foreach (var item in wheelCheck)
                 {
-                    if(Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value) < 0.09)
+                    if (Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value) < 0.09)
                     {
                         if (checkBox1.Checked)
                         {
@@ -206,7 +311,7 @@ namespace WheelCheck2SII
                     try
                     {
                         File.WriteAllText(SaveDialog.FileName, fileContents);
-                   
+
                         MessageBox.Show($"Successfully saved ffb_lut.sii file in {SaveDialog.FileName}");
                     }
                     catch (Exception E)
@@ -215,10 +320,12 @@ namespace WheelCheck2SII
                     }
 
                 }
-            }
-            else
-            {
-                MessageBox.Show($"Load the WheelCheck CSV first.");
+
+
+                else
+                {
+                    MessageBox.Show($"Load the WheelCheck CSV first.");
+                }
             }
         }
 
@@ -261,4 +368,13 @@ namespace WheelCheck2SII
     {
     }
 }
+    public class LUTGeneratorFile
+    {
+        public double requestedForce { get; set; }
+        public double actualForce {  get; set; }   
+        public LUTGeneratorFile()
+        {
+
+        }
+    }
 }
