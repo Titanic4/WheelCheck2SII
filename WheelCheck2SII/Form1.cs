@@ -54,10 +54,12 @@ namespace WheelCheck2SII
 
             OpenDialog.ShowHelp = false;
             OpenDialog.AddExtension = true;
+            OpenDialog.SupportMultiDottedExtensions = true;
             noforce = 0;
             dzfound = false;
             dzoffset = 0;
             OpenDialog.DefaultExt = ".csv(WheelCheck CSV) | .lut(LUT Generator output)";
+            
             OpenDialog.Title = "Select WheelCheck CSV or LUT Generator output file...";
             
             DialogResult Res = OpenDialog.ShowDialog();
@@ -78,6 +80,18 @@ namespace WheelCheck2SII
                         LUTMode = false;
                         using (TextFieldParser textFieldParser = new TextFieldParser(Path))
                         {
+                            if (chart1.Series.FindByName("deltaXDeg") != null)
+                            {
+                                chart1.Series["deltaXDeg"].Points.Clear();
+
+                            }
+                          
+                            if (chart1.Series.FindByName("actualForce") != null)
+                            {
+                                chart1.Series["actualForce"].Points.Clear();
+                                LUT.Clear();
+                                chart1.Series.Clear();
+                            }
                             if (chart1.Series.FindByName("deltaXDeg") != null)
                             {
                                 chart1.Series["deltaXDeg"].Points.Clear();
@@ -161,8 +175,9 @@ namespace WheelCheck2SII
                     }
 
                 }
-                if (Path.Contains("lut")) // LUT Generator file support...
+                if (Path.Contains(".lut")) // LUT Generator file support...
                 {
+                    chart1.Series.Clear();
                     string Check = File.ReadAllText(Path);
                     if (!Check.Contains("|"))
                     {
@@ -175,8 +190,8 @@ namespace WheelCheck2SII
                         toolTip1.SetToolTip(numericUpDown1, "This is unavailable in LUT Generator mode. This is used in WheelCheck mode.");
                         numericUpDown1.Enabled = false;
                         int count = 0;
-                        double maxForce = 0;
-
+                    
+                        LUT.Clear(); // Clear...
                         // LUT Generator file is basically the file, where each line has the following format: 
                         // Requested force | Actual given force
                         using (TextFieldParser textFieldParser = new TextFieldParser(Path))
@@ -199,13 +214,7 @@ namespace WheelCheck2SII
 
 
                         }
-                        foreach (var item in LUT)
-                        {
-                            if (item.actualForce > maxForce)
-                            {
-                                maxForce = item.actualForce;
-                            }
-                        }
+                     
 
                         if (chart1.Series.FindByName("deltaXDeg") != null)
                         {
@@ -213,7 +222,10 @@ namespace WheelCheck2SII
 
                         }
                         wheelCheck.Clear();
-
+                        if (chart1.Series.FindByName("actualForce") != null)
+                        {
+                            chart1.Series["actualForce"].Points.Clear();
+                        }
                         if (chart1.Series.FindByName("actualForce") == null)
                         {
                             chart1.Series.Add("actualForce");
@@ -223,13 +235,13 @@ namespace WheelCheck2SII
 
                         chart1.DataSource = LUT;
 
-                        for (int i = 0; i < LUT.Count(); i++)
+                        for (int i = 1; i < LUT.Count()+1; i++)
                         {
-                            chart1.Series["actualForce"].Points.Add(LUT[i].actualForce);
+                            chart1.Series["actualForce"].Points.Add(LUT[i-1].actualForce);
 
                         }
-
-                        MessageBox.Show($"There are {count + 1} values in this LUT Generator file. \n Max force: {maxForce}");
+                        label1.Text = $"LUT Generator mode active. \nLoaded {LUT.Count() + 1} values.";
+                     
                         chart1.Update();
                     }
                 }
