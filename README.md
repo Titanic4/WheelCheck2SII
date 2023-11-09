@@ -9,5 +9,8 @@ Usage:
 4.    (Only applies to 1.0.1 and above) Set the desired precision by amount of decimal digits. Default value will give very rough representation of given response curve. As you do that, you'll see the line on the chart. This changes as you change the amount of decimal digits.
 5.    Press "Save ffb_lut.sii file". Select the location where you want to save, then press "Save". 
 6.    Install the LUT file according to the info on this site: https://modding.scssoft.com/wiki/Documentation/Engine/Advanced_input_configuration/Force_feedback_LUT
-(only applies to 1.0.3 or above) If you open the LUT Generator LUT file in the program, you'll get the LUT output values precise to 3 digits after decimal point if you decide to save the output file.
+
+(only applies to 1.0.3 or above): If you open the LUT Generator LUT file in the program, you'll get the LUT output values precise to 3 digits after decimal point if you decide to save the output file.
+
+
 If everything went correctly, after opening the game and opening the settings on "Controllers" sub-menu, you should see the ❗ next to the total gain slider. This means that the file was loaded correctly.
