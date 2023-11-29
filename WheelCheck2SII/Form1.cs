@@ -292,53 +292,55 @@ namespace WheelCheck2SII
 
                     }
                 }
-            }
-            else
-            {
-                foreach (var item in wheelCheck)
+                else
                 {
-                    if (Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value) < 0.09)
+                    foreach (var item in wheelCheck)
                     {
-                        if (checkBox1.Checked)
+                        if (Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value) < 0.09)
+                        {
+                            if (checkBox1.Checked)
+                            {
+                                contents += $"output_values[]: {Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value).ToString("0.##################", CultureInfo.GetCultureInfo("en-GB"))}\n";
+                            }
+                            continue;
+                        }
+                        if (Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value) > 1)
+                        {
+                            contents += $"output_values[]: 1\n";
+                        }
+                        else
                         {
                             contents += $"output_values[]: {Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value).ToString("0.##################", CultureInfo.GetCultureInfo("en-GB"))}\n";
                         }
-                        continue;
                     }
-                    if (Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value) > 1)
+                    var fileContents = header + contents + footer;
+                    SaveDialog.FileName = "ffb_lut.sii";
+                    SaveDialog.Filter = "Force Feedback LUT file(ETS2/ATS 1.42+) | ffb_lut.sii";
+                    SaveDialog.Title = "Select the location where you want to save the file";
+                    if (SaveDialog.ShowDialog() == DialogResult.OK)
                     {
-                        contents += $"output_values[]: 1\n";
-                    }
-                    else
-                    {
-                        contents += $"output_values[]: {Math.Round(item.deltaXDeg / max, (int)numericUpDown1.Value).ToString("0.##################", CultureInfo.GetCultureInfo("en-GB"))}\n";
-                    }
-                }
-                var fileContents = header + contents + footer;
-                SaveDialog.FileName = "ffb_lut.sii";
-                SaveDialog.Filter = "Force Feedback LUT file(ETS2/ATS 1.42+) | ffb_lut.sii";
-                SaveDialog.Title = "Select the location where you want to save the file";
-                if (SaveDialog.ShowDialog() == DialogResult.OK)
-                {
-                    try
-                    {
-                        File.WriteAllText(SaveDialog.FileName, fileContents);
+                        try
+                        {
+                            File.WriteAllText(SaveDialog.FileName, fileContents);
 
-                        MessageBox.Show($"Successfully saved ffb_lut.sii file in {SaveDialog.FileName}");
-                    }
-                    catch (Exception E)
-                    {
-                        MessageBox.Show($"There was problem saving the file. Either you don't have permission, or the drive you want to write into is read only.\n{E.Message}\n{E.StackTrace}");
+                            MessageBox.Show($"Successfully saved ffb_lut.sii file in {SaveDialog.FileName}");
+                        }
+                        catch (Exception E)
+                        {
+                            MessageBox.Show($"There was problem saving the file. Either you don't have permission, or the drive you want to write into is read only.\n{E.Message}\n{E.StackTrace}");
+                        }
+
                     }
 
-                }
 
-
-                else
-                {
-                    MessageBox.Show($"Load the WheelCheck CSV first.");
+                    
                 }
             }
+            else
+            {
+                MessageBox.Show($"Load the WheelCheck CSV first.");
+            }
+
         }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
